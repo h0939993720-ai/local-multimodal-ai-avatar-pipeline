@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星雲大師法語問答</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #1a1208;
+    --parchment:  #f5f0e8;
+    --gold:       #b8860b;
+    --gold-light: #d4a520;
+    --gold-dim:   #8b6508;
+    --mist:       #e8e2d5;
+    --scroll:     #ede7d9;
+    --text-main:  #2c2416;
+    --text-soft:  #6b5e4a;
+    --shadow:     rgba(26,18,8,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Serif TC', serif;
+    background: var(--parchment);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(184,134,11,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 90%, rgba(139,32,32,0.05) 0%, transparent 60%);
+  }
+
+  /* 頂部標題 */
+  .header {
+    width: 100%;
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+    border-bottom: 1px solid rgba(184,134,11,0.25);
+  }
+  .header::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 1rem auto 0;
+  }
+  .header-badge {
+    display: inline-block;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--text-soft);
+    border: 1px solid rgba(184,134,11,0.3);
+    padding: 0.25rem 0.9rem;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+  }
+  .header h1 {
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+  }
+  .header h1 span { color: var(--gold); }
+  .header .subtitle {
+    font-size: 0.75rem;
+    color: var(--text-soft);
+    letter-spacing: 0.08em;
+    margin-top: 0.4rem;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-weight: 300;
+  }
+
+  /* 主容器 */
+  .main {
+    width: 100%;
+    max-width: 780px;
+    padding: 2rem 1.5rem 7rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* 大師展示區 */
+  .master-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  @media (min-width: 600px) {
+    .master-panel { flex-direction: row; align-items: flex-start; gap: 1.5rem; }
+    .master-title { text-align: left; padding: 0.5rem 0 0; }
+  }
+
+  /* ── 媒體外層：固定尺寸，flex 置中，不 overflow hidden ── */
+  .media-wrapper {
+    position: relative;        /* ✅ 確保子元素 absolute 定位以此為基準 */
+    width: 320px;
+    height: 260px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;          /* ✅ 裁切超出範圍的影片，防止跑版 */
+    border-radius: 10px;
+  }
+
+  /* 影片播放時 wrapper 加金框 */
+  .media-wrapper.video-active {
+    border: 3px solid var(--gold-dim);
+    box-shadow: 0 0 0 6px rgba(184,134,11,0.1), 0 8px 32px var(--shadow);
+  }
+
+  /* 照片：圓形顯示 */
+  .media-container {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--gold-dim);
+    box-shadow: 0 0 0 6px rgba(184,134,11,0.1), 0 0 0 12px rgba(184,134,11,0.05), 0 8px 32px var(--shadow);
+    background: var(--mist);
+    transition: opacity 0.3s ease;
+    z-index: 2;
+  }
+  #master-photo {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    display: block;
+  }
+
+  /* 影片：上半身寬版比例，絕對定位在 wrapper 中央 */
+  #master-video {
+    position: relative;        /* ✅ 不再 absolute，由 wrapper overflow 控制 */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    z-index: 3;
+  }
+
+  /* 播放中：隱藏圓形照片，顯示方形影片 */
+  .media-wrapper.video-active .media-container { opacity: 0; pointer-events: none; }
+  .media-wrapper.video-active #master-video    { display: block; }
+
+  /* 等待時的脈動光環（套在 wrapper 上） */
+  .media-wrapper.thinking::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    animation: pulse-ring 1.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes pulse-ring {
+    0%   { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.12); }
+  }
+
+  .speaking-indicator {
+    display: none;
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: var(--gold);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    z-index: 3;
+    align-items: center;
+    justify-content: center;
+  }
+  .speaking-indicator.active { display: flex; }
+  .speaking-indicator::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+    animation: pulse-dot 1s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%       { transform: scale(1.4); opacity: 0.6; }
+  }
+
+  /* 名銜 */
+  .master-title { text-align: center; padding: 1rem 0 0.5rem; }
+  .master-title h2 { font-size: 1rem; font-weight: 500; letter-spacing: 0.2em; color: var(--gold-dim); }
+  .master-title p  { font-size: 0.65rem; color: var(--text-soft); font-family: 'Noto Sans TC', sans-serif; letter-spacing: 0.12em; margin-top: 0.2rem; }
+
+  /* 等待狀態文字 */
+  .status-text {
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+    letter-spacing: 0.1em;
+    text-align: center;
+    min-height: 1.2em;
+    margin-top: 0.5rem;
+    transition: opacity 0.3s;
+  }
+
+  /* 回答區域 */
+  .answer-area {
+    background: var(--scroll);
+    border: 1px solid rgba(184,134,11,0.2);
+    border-radius: 4px;
+    padding: 1.5rem;
+    min-height: 120px;
+    position: relative;
+    box-shadow: inset 0 1px 3px rgba(26,18,8,0.05);
+    flex: 1;
+    width: 100%;
+  }
+  .answer-area::before {
+    content: '法語';
+    position: absolute;
+    top: -0.6rem;
+    left: 1rem;
+    background: var(--scroll);
+    padding: 0 0.4rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--gold-dim);
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  #answer-text {
+    font-size: 0.95rem;
+    line-height: 2;
+    color: var(--text-main);
+    letter-spacing: 0.05em;
+    white-space: pre-wrap;
+  }
+  .answer-placeholder {
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    font-style: italic;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-weight: 300;
+  }
+
+  /* 進度條 */
+  .progress-bar-wrap {
+    display: none;
+    background: rgba(184,134,11,0.1);
+    border-radius: 4px;
+    height: 3px;
+    margin-top: 0.8rem;
+    overflow: hidden;
+  }
+  .progress-bar-wrap.active { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+  .progress-label {
+    font-size: 0.72rem;
+    color: var(--text-soft);
+    font-family: 'Noto Sans TC', sans-serif;
+    margin-top: 0.35rem;
+    min-height: 1.2em;
+    letter-spacing: 0.03em;
+    transition: opacity 0.3s;
+  }
+
+  /* 載入動畫 */
+  .loading-dots { display: none; gap: 6px; align-items: center; padding: 0.5rem 0; }
+  .loading-dots.active { display: flex; }
+  .loading-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40%           { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* 音訊播放器 */
+  #audio-player {
+    display: none;
+    width: 100%;
+    margin-top: 0.8rem;
+    height: 32px;
+    accent-color: var(--gold);
+  }
+
+  /* 輸入區域 */
+  .input-area {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, var(--parchment) 80%, transparent);
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .input-row {
+    display: flex;
+    gap: 0.6rem;
+    width: 100%;
+    max-width: 700px;
+    align-items: flex-end;
+  }
+  #user-input {
+    flex: 1;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    background: white;
+    border: 1px solid rgba(184,134,11,0.3);
+    border-radius: 4px;
+    padding: 0.7rem 1rem;
+    resize: none;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.2s;
+    min-height: 44px;
+    max-height: 120px;
+  }
+  #user-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,134,11,0.1); }
+  #user-input::placeholder { color: #b0a590; font-weight: 300; }
+
+  .btn-send {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    color: white;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+    border: none;
+    border-radius: 4px;
+    padding: 0.7rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-height: 44px;
+    box-shadow: 0 2px 8px rgba(139,101,8,0.3);
+  }
+  .btn-send:hover:not(:disabled) { background: linear-gradient(135deg, var(--gold-light), var(--gold)); transform: translateY(-1px); }
+  .btn-send:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .action-row { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; }
+  .btn-action {
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--text-soft);
+    background: transparent;
+    border: 1px solid rgba(184,134,11,0.25);
+    border-radius: 20px;
+    padding: 0.3rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-action:hover { color: var(--gold-dim); border-color: var(--gold-dim); background: rgba(184,134,11,0.05); }
+
+  .disclaimer {
+    text-align: center;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.6rem;
+    color: rgba(107,94,74,0.6);
+    letter-spacing: 0.08em;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeIn 0.5s ease forwards; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-badge">人間佛教 · 法語問答</div>
+  <h1>星雲大師<span>法語</span>問答</h1>
+  <p class="subtitle">AI 數位法語助手 · 依大師著作開示回答</p>
+</header>
+
+<main class="main">
+  <section class="master-panel">
+    <div>
+      <div class="media-wrapper" id="media-wrapper">
+        <video id="master-video" playsinline muted></video>
+        <div class="media-container" id="media-container">
+          <img id="master-photo" src="/static/avatar/master.jpg"
+               onerror="this.style.display='none';" alt="星雲大師">
+        </div>
+        <div class="speaking-indicator" id="speaking-indicator"></div>
+      </div>
+      <div class="status-text" id="status-text"></div>
+    </div>
+
+    <div style="flex:1; width:100%;">
+      <div class="master-title">
+        <h2>星雲大師</h2>
+        <p>佛光山開山住持 · 人間佛教倡導者（1927–2023）</p>
+      </div>
+
+      <div class="answer-area" id="answer-area">
+        <div class="loading-dots" id="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <p id="answer-text">
+          <span class="answer-placeholder">請在下方輸入您的問題，大師將依其開示為您解惑。</span>
+        </p>
+        <div class="progress-bar-wrap" id="progress-wrap">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="progress-label" id="progress-label"></div>
+        <audio id="audio-player" controls></audio>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="input-area">
+  <div class="input-row">
+    <textarea id="user-input" rows="1"
+      placeholder="請輸入您的問題，例如：何謂人間佛教？如何面對逆境？"
+      maxlength="500"></textarea>
+    <button class="btn-send" id="btn-send" onclick="sendMessage()">請示</button>
+  </div>
+  <div class="action-row">
+    <button class="btn-action" onclick="replayAudio()">🔊 重播語音</button>
+    <button class="btn-action" onclick="resetConversation()">🔄 重新對話</button>
+  </div>
+  <p class="disclaimer">此為 AI 模擬輔助系統，非星雲大師本人 · 僅供法語學習參考之用</p>
+</div>
+
+<script>
+const API_BASE = '';
+
+// 等待提示語（輪流顯示，讓等待不無聊）
+const waitingMessages = [
+  '大師正在思考中...',
+  '正在檢索法語開示...',
+  '正在合成大師聲音...',
+  '正在生成動畫影像...',
+  '即將為您呈現...',
+];
+let waitingTimer = null;
+let waitingIdx = 0;
+
+function startWaiting() {
+  const statusEl = document.getElementById('status-text');
+  waitingIdx = 0;
+  statusEl.textContent = waitingMessages[0];
+  document.getElementById('media-wrapper').classList.add('thinking');
+  waitingTimer = setInterval(() => {
+    waitingIdx = (waitingIdx + 1) % waitingMessages.length;
+    statusEl.textContent = waitingMessages[waitingIdx];
+  }, 3000);
+}
+
+function stopWaiting() {
+  clearInterval(waitingTimer);
+  document.getElementById('status-text').textContent = '';
+  document.getElementById('media-wrapper').classList.remove('thinking');
+}
+
+// 進度條（SSE 真實進度）
+let _sseSource = null;
+
+function startProgress(sid) {
+  const wrap  = document.getElementById('progress-wrap');
+  const bar   = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  wrap.classList.add('active');
+  bar.style.width = '0%';
+  label.textContent = '準備中...';
+
+  if (_sseSource) { _sseSource.close(); _sseSource = null; }
+
+  _sseSource = new EventSource(`${API_BASE}/progress/${sid}`);
+  _sseSource.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      bar.style.width = d.pct + '%';
+      label.textContent = d.msg || '';
+      if (d.pct >= 100) {
+        _sseSource.close();
+        _sseSource = null;
+      }
+    } catch {}
+  };
+  _sseSource.onerror = () => {
+    if (_sseSource) { _sseSource.close(); _sseSource = null; }
+  };
+}
+
+function finishProgress() {
+  if (_sseSource) { _sseSource.close(); _sseSource = null; }
+  const bar   = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  bar.style.width = '100%';
+  label.textContent = '完成';
+  setTimeout(() => {
+    document.getElementById('progress-wrap').classList.remove('active');
+    bar.style.width = '0%';
+    label.textContent = '';
+  }, 800);
+}
+
+// textarea 自動高度
+const textarea = document.getElementById('user-input');
+textarea.addEventListener('input', () => {
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+});
+textarea.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+async function sendMessage() {
+  const input      = document.getElementById('user-input');
+  const message    = input.value.trim();
+  if (!message) return;
+
+  const btnSend    = document.getElementById('btn-send');
+  const answerText = document.getElementById('answer-text');
+  const loadingDots = document.getElementById('loading-dots');
+  const audioPlayer = document.getElementById('audio-player');
+  const masterVideo = document.getElementById('master-video');
+  const speakingInd = document.getElementById('speaking-indicator');
+
+  // UI 進入等待狀態
+  btnSend.disabled    = true;
+  btnSend.textContent = '請示中';
+  input.value         = '';
+  input.style.height  = 'auto';
+  answerText.innerHTML = '';
+  loadingDots.classList.add('active');
+  audioPlayer.style.display = 'none';
+  speakingInd.classList.remove('active');
+  document.getElementById('media-wrapper').classList.remove('video-active');
+
+  startWaiting();
+  const sid = Math.random().toString(36).slice(2, 10);
+  startProgress(sid);
+
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, sid })
+    });
+    const data = await res.json();
+
+    finishProgress();
+    loadingDots.classList.remove('active');
+    stopWaiting();
+
+    if (data.error) {
+      answerText.innerHTML = `<span style="color:#8b2020;">${data.error}</span>`;
+      return;
+    }
+
+    // 顯示文字（逐字打印）
+    typeText(answerText, data.reply || '');
+
+    // 播放完整語音
+    if (data.audio_url) {
+      audioPlayer.src = data.audio_url;
+      audioPlayer.style.display = 'block';
+      audioPlayer.play().catch(() => {});
+      speakingInd.classList.add('active');
+      audioPlayer.onended = () => speakingInd.classList.remove('active');
+    }
+
+    // ✅ 播放影片：wrapper 切換為 video-active，影片正方形顯示
+    if (data.video_url) {
+      const mediaWrapper = document.getElementById('media-wrapper');
+      masterVideo.src  = data.video_url;
+      masterVideo.loop = true;
+      mediaWrapper.classList.add('video-active');
+      masterVideo.play().catch(() => {});
+
+      // 音訊結束 → 停止影片 → 恢復圓形照片
+      audioPlayer.onended = () => {
+        speakingInd.classList.remove('active');
+        masterVideo.pause();
+        masterVideo.currentTime = 0;
+        mediaWrapper.classList.remove('video-active');
+      };
+    }
+
+  } catch (err) {
+    finishProgress();
+    loadingDots.classList.remove('active');
+    stopWaiting();
+    answerText.innerHTML = `<span style="color:#8b2020;">連線異常，請稍後再試。</span>`;
+    console.error(err);
+  } finally {
+    btnSend.disabled    = false;
+    btnSend.textContent = '請示';
+  }
+}
+
+// 逐字打印
+function typeText(el, text) {
+  el.textContent = '';
+  let i = 0;
+  const speed = Math.max(20, Math.min(50, 3000 / text.length));
+  const timer = setInterval(() => {
+    if (i < text.length) {
+      el.textContent += text[i++];
+    } else {
+      clearInterval(timer);
+      el.classList.add('fade-in');
+    }
+  }, speed);
+}
+
+function replayAudio() {
+  const audio = document.getElementById('audio-player');
+  if (audio.src) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+    document.getElementById('speaking-indicator').classList.add('active');
+    audio.onended = () => document.getElementById('speaking-indicator').classList.remove('active');
+  }
+}
+
+async function resetConversation() {
+  try { await fetch(`${API_BASE}/reset`, { method: 'POST' }); } catch {}
+  document.getElementById('answer-text').innerHTML =
+    '<span class="answer-placeholder">對話已重置，請輸入新的問題。</span>';
+  document.getElementById('audio-player').style.display = 'none';
+  const mv = document.getElementById('master-video');
+  mv.pause(); mv.currentTime = 0;
+  document.getElementById('media-wrapper').classList.remove('video-active');
+  document.getElementById('speaking-indicator').classList.remove('active');
+  stopWaiting();
+}
+</script>
+</body>
+</html>

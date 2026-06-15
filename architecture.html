@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>佛法數位大師 — 系統架構圖</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --gold:      #d4a520;
+    --gold-dim:  #8b6508;
+    --gold-glow: rgba(212,165,32,0.15);
+    --teal:      #58a6ff;
+    --green:     #3fb950;
+    --purple:    #bc8cff;
+    --red:       #ff7b72;
+    --text:      #e6edf3;
+    --text-soft: #8b949e;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Noto Sans TC', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 2.5rem 2rem 4rem;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .page-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+  }
+  .page-header .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    padding: 0.25rem 0.9rem;
+    border-radius: 20px;
+    margin-bottom: 0.9rem;
+    text-transform: uppercase;
+  }
+  .page-header h1 {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+  .page-header h1 span { color: var(--gold); }
+  .page-header p {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+    margin-top: 0.5rem;
+    font-weight: 300;
+  }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold-dim), transparent);
+  }
+
+  /* ── Flow diagram ── */
+  .flow-section { margin-bottom: 4rem; }
+
+  .flow-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .flow-node:hover {
+    border-color: var(--gold-dim);
+    box-shadow: 0 0 16px var(--gold-glow);
+  }
+  .flow-node .icon {
+    font-size: 1.6rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .flow-node .label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  .flow-node .sublabel {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-soft);
+  }
+  .flow-node .port {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--gold);
+    margin-top: 0.4rem;
+    display: block;
+  }
+
+  /* node color variants */
+  .node-user   { border-color: #30363d; }
+  .node-rag    { border-color: #1f6feb; background: #0d1b2e; }
+  .node-tts    { border-color: #238636; background: #0d2116; }
+  .node-lp     { border-color: #8957e5; background: #1a0d2e; }
+  .node-muse   { border-color: #da3633; background: #2d0d0d; }
+  .node-ffmpeg { border-color: #e3b341; background: #2b1e00; }
+  .node-out    { border-color: var(--gold); background: #1e1600; box-shadow: 0 0 20px var(--gold-glow); }
+
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 0.5rem;
+  }
+  .arrow-line {
+    width: 32px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--border), var(--gold-dim));
+  }
+  .arrow-head {
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+    margin-left: 18px;
+    margin-top: -2px;
+  }
+  .arrow-label {
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    color: var(--text-soft);
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+
+  /* ── Pipeline steps ── */
+  .pipeline-section { margin-bottom: 4rem; }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step {
+    background: var(--surface);
+    padding: 1.2rem 1rem;
+    position: relative;
+  }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--border);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .step-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+  .step-detail {
+    font-size: 0.68rem;
+    color: var(--text-soft);
+    line-height: 1.5;
+  }
+  .step-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+  }
+  .tag-rag    { background: #1f6feb22; color: var(--teal); border: 1px solid #1f6feb44; }
+  .tag-tts    { background: #23863622; color: var(--green); border: 1px solid #23863644; }
+  .tag-lp     { background: #8957e522; color: var(--purple); border: 1px solid #8957e544; }
+  .tag-muse   { background: #da363322; color: var(--red); border: 1px solid #da363344; }
+  .tag-ffmpeg { background: #e3b34122; color: #e3b341; border: 1px solid #e3b34144; }
+
+  /* ── Folder tree ── */
+  .folder-section { margin-bottom: 4rem; }
+
+  .tree-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 700px) {
+    .tree-grid { grid-template-columns: 1fr; }
+    .flow-grid { grid-template-columns: 1fr; }
+    .arrow { display: none; }
+  }
+
+  .tree-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .tree-card-header {
+    background: #1c2128;
+    padding: 0.7rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--gold);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .tree-body {
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    line-height: 2;
+  }
+  .tree-body .dir  { color: var(--teal); }
+  .tree-body .file { color: var(--text); }
+  .tree-body .note { color: var(--text-soft); font-size: 0.62rem; }
+  .tree-body .indent1 { padding-left: 1.2rem; }
+  .tree-body .indent2 { padding-left: 2.4rem; }
+  .tree-body .indent3 { padding-left: 3.6rem; }
+
+  /* ── Ports table ── */
+  .ports-section { margin-bottom: 4rem; }
+  .ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  .ports-table th {
+    text-align: left;
+    padding: 0.6rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .ports-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #21262d;
+    vertical-align: middle;
+  }
+  .ports-table tr:last-child td { border-bottom: none; }
+  .ports-table tr:hover td { background: #1c2128; }
+  .port-num {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 0.4rem;
+    box-shadow: 0 0 6px var(--green);
+  }
+  .bat-tag {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    color: var(--text-soft);
+  }
+
+  /* ── Footer ── */
+  .page-footer {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.65rem;
+    color: var(--text-soft);
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="page-header">
+  <div class="badge">System Architecture</div>
+  <h1>佛法數位大師 <span>系統架構</span></h1>
+  <p>Buddhist Digital Master · Multimodal AI Avatar Pipeline</p>
+</div>
+
+<!-- Section 1: Flow -->
+<div class="flow-section">
+  <div class="section-title">完整請求流程</div>
+  <div class="flow-grid">
+
+    <div class="flow-node node-user">
+      <span class="icon">🙏</span>
+      <span class="label">信眾提問</span>
+      <span class="sublabel">frontend.html</span>
+      <span class="port">Browser</span>
+    </div>
+
+    <div class="arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+      <div class="arrow-label">POST /ask</div>
+    </div>
+
+    <div class="flow-node node-rag">
+      <span class="icon">🔍</span>
+      <span class="label">RAG 問答</span>
+      <span class="sublabel">app.py + FAISS</span>
+      <span class="port">:8080</span>
+    </div>
+
+    <div class="arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+      <div class="arrow-label">text</div>
+    </div>
+
+    <div class="flow-node node-tts">
+      <span class="icon">🔊</span>
+      <span class="label">Fish Speech</span>
+      <span class="sublabel">TTS 聲線克隆</span>
+      <span class="port">:7860</span>
+    </div>
+
+    <div class="arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+      <div class="arrow-label">audio</div>
+    </div>
+
+    <div class="flow-node node-lp">
+      <span class="icon">🎬</span>
+      <span class="label">LivePortrait</span>
+      <span class="sublabel">頭部動畫驅動</span>
+      <span class="port">:7861</span>
+    </div>
+
+  </div>
+
+  <!-- Second row -->
+  <div style="display:grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items:center; margin-top: 1px;">
+
+    <div style="display:flex; justify-content:flex-end; padding-right:1rem;">
+      <div class="flow-node node-out" style="width:200px;">
+        <span class="icon">📺</span>
+        <span class="label">最終輸出影片</span>
+        <span class="sublabel">嘴型同步 · 語音對齊</span>
+        <span class="port">video_xxx.mp4</span>
+      </div>
+    </div>
+
+    <div class="arrow" style="transform:rotate(180deg);">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+    </div>
+
+    <div class="flow-node node-ffmpeg" style="margin: 0 auto; width: 180px;">
+      <span class="icon">⚙️</span>
+      <span class="label">FFmpeg Server</span>
+      <span class="sublabel">音訊合併 · 重採樣</span>
+      <span class="port">:7862</span>
+    </div>
+
+    <div class="arrow" style="transform:rotate(180deg);">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+    </div>
+
+    <div class="flow-node node-muse">
+      <span class="icon">👄</span>
+      <span class="label">MuseTalk</span>
+      <span class="sublabel">嘴型同步</span>
+      <span class="port">:7863</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Section 2: Pipeline Steps -->
+<div class="pipeline-section">
+  <div class="section-title">處理步驟分解</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-name">RAG 檢索</div>
+      <div class="step-detail">FAISS 向量檢索<br>BGE-M3 嵌入模型<br>GPT-4o-mini 生成</div>
+      <span class="step-tag tag-rag">app.py :8080</span>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-name">語音合成</div>
+      <div class="step-detail">Fish Speech v1.5<br>聲線克隆 44100Hz<br>參考音訊 8 秒</div>
+      <span class="step-tag tag-tts">fish_server :7860</span>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-name">頭部動畫</div>
+      <div class="step-detail">LivePortrait 推論<br>相對運動傳播<br>stitching 帶動肩膀</div>
+      <span class="step-tag tag-lp">liveportrait :7861</span>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-name">音訊合併</div>
+      <div class="step-detail">FFmpeg 8.1<br>循環補長影片<br>+1秒緩衝</div>
+      <span class="step-tag tag-ffmpeg">ffmpeg_server :7862</span>
+    </div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-name">嘴型同步</div>
+      <div class="step-detail">MuseTalk V1.5<br>44100→16kHz 重採樣<br>Whisper 音訊特徵</div>
+      <span class="step-tag tag-muse">musetalk :7863</span>
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: Ports Table -->
+<div class="ports-section">
+  <div class="section-title">服務一覽</div>
+  <table class="ports-table">
+    <thead>
+      <tr>
+        <th>Port</th>
+        <th>服務</th>
+        <th>檔案</th>
+        <th>啟動方式</th>
+        <th>Python 環境</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="port-num">8080</span></td>
+        <td><span class="status-dot"></span>主程式 RAG + API</td>
+        <td><code>app.py</code></td>
+        <td><span class="bat-tag">start_app.bat</span></td>
+        <td>venv312</td>
+      </tr>
+      <tr>
+        <td><span class="port-num">7860</span></td>
+        <td><span class="status-dot"></span>Fish Speech TTS</td>
+        <td><code>fish_server.py</code></td>
+        <td><span class="bat-tag">start_fish.bat</span></td>
+        <td>fish-speech/venv</td>
+      </tr>
+      <tr>
+        <td><span class="port-num">7861</span></td>
+        <td><span class="status-dot"></span>LivePortrait 動畫</td>
+        <td><code>liveportrait_server.py</code></td>
+        <td><span class="bat-tag">start_liveportrait.bat</span></td>
+        <td>project/venv312</td>
+      </tr>
+      <tr>
+        <td><span class="port-num">7862</span></td>
+        <td><span class="status-dot"></span>FFmpeg 處理</td>
+        <td><code>ffmpeg_server.py</code></td>
+        <td><span class="bat-tag">start_ffmpeg.bat</span></td>
+        <td>系統 Python 3.12</td>
+      </tr>
+      <tr>
+        <td><span class="port-num">7863</span></td>
+        <td><span class="status-dot"></span>MuseTalk 嘴型同步</td>
+        <td><code>musetalk_server.py</code></td>
+        <td><span class="bat-tag">start_musetalk.bat</span></td>
+        <td>MuseTalk/venv (Python 3.10)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Section 4: Folder Structure -->
+<div class="folder-section">
+  <div class="section-title">資料夾結構</div>
+  <div class="tree-grid">
+
+    <!-- project/ -->
+    <div class="tree-card">
+      <div class="tree-card-header">📁 Desktop/project/</div>
+      <div class="tree-body">
+        <div class="dir">├── app.py</div>
+        <div class="note indent1">主程式 RAG + 路由</div>
+        <div class="dir">├── tts_service.py</div>
+        <div class="note indent1">TTS 呼叫介面</div>
+        <div class="dir">├── video_service.py</div>
+        <div class="note indent1">影片生成介面</div>
+        <div class="dir">├── liveportrait_server.py</div>
+        <div class="note indent1">LP + MuseTalk 串接</div>
+        <div class="dir">├── ffmpeg_server.py</div>
+        <div class="note indent1">FFmpeg 獨立伺服器</div>
+        <div class="dir">├── prepare_driving_video.py</div>
+        <div class="dir">├── extract_source_frame.py</div>
+        <div class="dir">├── audio_preprocess.py</div>
+        <div class="dir">├── data.txt</div>
+        <div class="note indent1">星雲大師語料庫</div>
+        <div class="dir">├── .env</div>
+        <div class="note indent1">OPENAI_API_KEY</div>
+        <div class="dir">└── static/</div>
+        <div class="dir indent1">├── audio/</div>
+        <div class="note indent2">reply_xxx.wav</div>
+        <div class="dir indent1">├── video/</div>
+        <div class="note indent2">video_xxx.mp4</div>
+        <div class="dir indent1">└── avatar/</div>
+        <div class="note indent2">master.jpg</div>
+        <div class="note indent2">master_drive.mp4</div>
+        <div class="note indent2">master_voice.wav</div>
+      </div>
+    </div>
+
+    <!-- fish-speech/ + MuseTalk/ -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+      <div class="tree-card">
+        <div class="tree-card-header">📁 Desktop/fish-speech/</div>
+        <div class="tree-body">
+          <div class="dir">├── fish_server.py</div>
+          <div class="note indent1">TTS 伺服器 :7860</div>
+          <div class="dir">├── checkpoints/</div>
+          <div class="dir indent1">└── fish-speech-1.5/</div>
+          <div class="note indent2">LLM + VQGAN 模型</div>
+          <div class="dir">└── venv/</div>
+          <div class="note indent1">Python 3.12 環境</div>
+        </div>
+      </div>
+
+      <div class="tree-card">
+        <div class="tree-card-header">📁 Desktop/MuseTalk/</div>
+        <div class="tree-body">
+          <div class="dir">├── musetalk_server.py</div>
+          <div class="note indent1">嘴型同步伺服器 :7863</div>
+          <div class="dir">├── musetalk/utils/</div>
+          <div class="note indent1">preprocessing.py (mediapipe)</div>
+          <div class="dir">├── models/</div>
+          <div class="dir indent1">├── musetalkV15/</div>
+          <div class="note indent2">unet.pth</div>
+          <div class="dir indent1">├── sd-vae-ft-mse/</div>
+          <div class="dir indent1">├── whisper/</div>
+          <div class="dir indent1">├── dwpose/</div>
+          <div class="dir indent1">├── face-parse-bisent/</div>
+          <div class="dir indent1">└── syncnet/</div>
+          <div class="dir">└── venv/</div>
+          <div class="note indent1">Python 3.10 環境</div>
+        </div>
+      </div>
+
+      <div class="tree-card">
+        <div class="tree-card-header">📁 Desktop/LivePortrait-main/</div>
+        <div class="tree-body">
+          <div class="dir">├── inference.py</div>
+          <div class="note indent1">LP 推論入口</div>
+          <div class="dir">└── venv/</div>
+          <div class="note indent1">PyTorch nightly cu128</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="page-footer">
+  佛法數位大師 · Buddhist Digital Master · RTX 5070 Ti · CUDA 13.1 · 2026
+</div>
+
+</body>
+</html>

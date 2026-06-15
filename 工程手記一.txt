@@ -1,0 +1,168 @@
+工程手記：星雲大師法語問答 AI 系統
+一、專案背景
+本專案由學校受地方委託開發，以星雲大師為形象，建立一套多模態 AI 問答系統，供信眾線上提問，由 AI 以大師聲線與動態影像回答法語問題。
+
+二、系統架構
+信眾提問（文字）
+      ↓
+Flask 後端接收
+      ↓
+RAG 檢索（FAISS + BGE-M3）
+      ↓
+GPT-4o-mini 生成回答文字
+      ↓
+Fish Speech Server（聲線克隆）
+      ↓
+LivePortrait（照片驅動動畫）
+      ↓
+FFmpeg（合併音訊與影片）
+      ↓
+前端播放影片 + 語音
+
+三、開發環境
+項目            規格
+作業系統        Windows 11
+Python          3.12（虛擬環境 venv312）
+GPU             NVIDIA RTX 5070 Ti（16GB VRAM）
+CUDA            13.1
+PyTorch         nightly cu128
+
+四、本次開發歷程
+
+4.1 RAG 核心（起點）
+原始程式碼問題：
+
+API Key 硬編碼在程式碼中（安全性漏洞）
+Embedding 模型使用英文優先的 all-MiniLM-L6-v2，不適合繁體中文語料
+相似度計算使用 L2 距離，閾值設定無意義（1.1）
+段落切分只用雙換行，語意不完整
+對話記憶只記錄 AI 回答，不記錄問題
+System Prompt 只有一行，缺乏知識邊界保護
+
+修改內容：
+
+API Key 改用 .env 環境變數讀取
+Embedding 模型換為 BAAI/bge-m3（支援繁體中文）
+相似度計算改為餘弦相似度，閾值設為 0.45
+段落切分改為語義滑動視窗（chunk_size=300, overlap=50）
+對話記憶改為問答都記錄，使用 deque(maxlen=10) 自動管理
+System Prompt 加入 6 條知識邊界規範
+新增 /debug 診斷路由，可查看相似度分數
+新增 /reset 路由，清除對話歷史
+新增 /health 健康檢查路由
+新增 /ask 整合路由（文字 + 語音 + 影片一次完成）
+保留原有 SSL 設定（www.ccchen.site）
+
+4.2 語音合成模組（tts_service.py）
+開發歷程：
+
+第一版：使用 edge-TTS 台灣男聲（zh-TW-YunJheNeural）
+加入語速與音調控制（rate="-25%", pitch="-8Hz"）
+第二版：整合 Fish Speech v1.5.1 聲線克隆
+第三版：加入分段合成邏輯，用 FFmpeg 串接完整語音
+最終架構：
+文字輸入
+  ↓
+split_text()：依句號切段（每段 ≤200 字）
+  ↓
+Fish Speech Server：逐段合成（備用：edge-TTS）
+  ↓
+FFmpeg concat：串接所有段落
+  ↓
+輸出完整 .wav 語音檔
+4.3 錄音清洗（audio_preprocess.py）
+
+使用 Demucs htdemucs_ft 模型分離人聲與背景雜音
+輸出格式轉換為 16kHz、單聲道、16-bit WAV
+供 Fish Speech 進行聲線克隆使用
+解決 Windows 上 torchcodec 不相容問題，改用 --mp3 參數輸出
+
+4.4 影片生成模組（video_service.py）
+開發歷程：
+
+第一版：降級模式（FFmpeg 靜態照片 + 語音合成假影片）
+第二版：整合 LivePortrait 動態動畫
+
+安裝遭遇的問題：
+
+Python 3.14 不相容 PyTorch，改用 Python 3.12 虛擬環境
+lmdb 在 Windows 編譯失敗，改用預編譯版本
+PyTorch cu121 不支援 RTX 5070 Ti，改用 nightly cu128
+LivePortrait 進度條含 emoji，Windows cp950 編碼錯誤，加入 PYTHONIOENCODING=utf-8 解決
+照片尺寸含奇數寬高，FFmpeg 編碼失敗，加入 scale=trunc(iw/2)*2:trunc(ih/2)*2 解決
+
+最終架構：
+大師照片（master.jpg）+ 合成語音
+  ↓
+LivePortrait inference.py（頭部動作、眨眼、表情）
+  ↓
+FFmpeg（替換音訊）
+  ↓
+輸出完整 .mp4 動態影片
+
+4.5 Fish Speech 聲線克隆伺服器（fish_server.py）
+開發歷程：
+
+Fish Speech 2.0 與 PyTorch nightly 版本衝突，建立獨立虛擬環境 venv_fish
+切換至 Fish Speech v1.5.1（git checkout v1.5.1）
+使用 vqgan.inference 載入 decoder（非 2.0 的 dac.inference）
+正確 config：firefly_gan_vq
+模型：firefly-gan-vq-fsq-8x1024-21hz-generator.pth
+解決多個 API 介面問題：
+
+InferenceResult 為物件而非 dict
+audio 為 (sample_rate, numpy_array) tuple 格式
+參考音訊需截斷至 10 秒避免 tensor size 不匹配
+
+
+以 Flask 建立 HTTP API，監聽 port 7860
+主系統透過 HTTP POST 呼叫，Fish Speech 失敗時自動降級至 edge-TTS
+
+4.6 前端介面（frontend.html）
+原始狀態： 只有基本輸入框和文字回答
+修改內容：
+
+禪意水墨風格設計（沉金配色）
+圓形大師頭像區，支援靜態照片與動態影片切換
+等待期間顯示輪流提示語（「大師正在思考中...」等）
+照片外圍脈動光環，視覺上表示系統運作中
+模擬進度條（緩慢爬升至 85%，完成後跳至 100%）
+文字逐字打印效果
+完整語音播放器，支援重播
+說話時顯示金色指示器
+重新對話按鈕
+
+4.7 啟動腳本
+建立兩個一鍵啟動 .bat 檔案：
+檔案用途start_fish.bat啟動 Fish Speech Server（port 7860）start_app.bat啟動主系統（port 8080）
+
+五、專案資料夾結構
+C:\Users\USER\Desktop\
+├── project\                    ← 主系統
+│   ├── app.py
+│   ├── tts_service.py
+│   ├── video_service.py
+│   ├── audio_preprocess.py
+│   ├── .env
+│   ├── data.txt
+│   ├── start_app.bat
+│   ├── static\
+│   │   ├── avatar\
+│   │   │   ├── master.jpg
+│   │   │   ├── master_voice.mp3
+│   │   │   └── master_voice.wav
+│   │   ├── audio\
+│   │   └── video\
+│   ├── templates\
+│   │   └── frontend.html
+│   └── venv312\
+│
+├── fish-speech\                ← Fish Speech 獨立環境
+│   ├── fish_server.py
+│   ├── start_fish.bat
+│   ├── checkpoints\
+│   │   └── fish-speech-1.5\
+│   └── venv_fish\
+│
+└── LivePortrait-main\          ← LivePortrait 模型
+    └── pretrained_weights\

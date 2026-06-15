@@ -1,0 +1,131 @@
+第一階段：聲線克隆優化
+問題
+
+重複複讀、語調浮動、文字跳過
+Fish Speech 切段合成後 FFmpeg 串接產生接縫
+
+調整項目
+app.py
+
+max_tokens 從 800 降至 300
+System Prompt 字數限制從 80 字降至 60 字
+加入後處理截斷：優先在句號斷，找不到則找逗號補句號
+加入靜態影片與音訊的明確 MIME type 路由
+
+tts_service.py
+
+MAX_SEGMENT_LEN 設為 200
+60 字以內強制單段合成，不切段
+FFmpeg concat 清單路徑統一轉正斜線
+
+fish_server.py
+
+路徑改為相對路徑（Path(__file__).parent）
+REFERENCE_WAV 指向 project/static/avatar/master_voice.wav
+OUTPUT_DIR 指向 project/static/audio/
+max_new_tokens 調整歷程：600 → 1024 → 800 → 300
+repetition_penalty 從 1.2 提高到 1.5
+chunk_length 從 200 提高到 300
+新增 merge_audio_chunks()：RMS 能量過濾，靜音 chunk 自動跳過
+新增參考音訊預處理：裁切至 10 秒、重採樣至 16kHz
+
+
+第二階段：LivePortrait 動畫驅動架構
+設計原則
+與 Fish Speech 相同架構，獨立 Flask Server + 獨立 venv，避免套件衝突。
+建立項目
+liveportrait_server.py（Port 7861）
+
+獨立 Flask Server，LivePortrait venv
+路徑全部相對化
+三步驟流程：LivePortrait 推論 → FFprobe 偵測音訊時長 → FFmpeg 合併
+
+video_service.py
+
+改為 HTTP 呼叫 LivePortrait Server
+連線失敗自動降級為靜態影片
+
+start_liveportrait.bat
+
+先 cd 到 LivePortrait-main 啟動 venv
+再切回 project 執行 liveportrait_server.py
+
+
+第三階段：驅動影片與來源照片準備
+問題歷程
+
+使用 LivePortrait 內建 d0.mp4 → 動作不符合開示風格
+下載大師朗誦影片 → 字幕、台標入鏡
+來源照片圓形裁切 → 與驅動影片比例不符
+裁切座標多次調整 → 人臉偏移問題
+
+工具腳本建立
+prepare_driving_video.py
+
+yt-dlp 下載 YouTube 影片
+FFmpeg 裁切：去台標（頂 5%）、去字幕（底 28%）
+最終裁切參數：crop=iw*0.55:ih*0.72:iw*0.22:ih*0.05
+輸出尺寸：512×309（寬版，含雙肩）
+時間起點：00:00:15（跳過片頭黑畫面）
+
+extract_source_frame.py
+
+直接從已裁切的驅動影片截幀
+不重複 crop，只做 scale
+支援 --preview 預覽多個時間點
+
+extract_frame.bat
+
+選單式操作：預設截取 / 多幀預覽 / 指定時間
+
+
+第四階段：LivePortrait 參數調整歷程
+問題歷程與對應調整
+問題原因解法頭像跑歪--flag-do-crop 裁切後位置偏移移除，信任我們的裁切臉部浮動缺少相對運動模式加入 --flag-relative-motion背景漂移未啟用 pasteback加入 --flag-pasteback眼睛不動缺少重定向參數加入 --flag-eye-retargeting嘴型不同步缺少嘴唇重定向加入 --flag-lip-retargeting鎖肩現象裁切範圍只到頸部改為寬版裁切 + --flag-stitching動作太誇張multiplier 過高driving-multiplier 從 1.2 調回 0.9 → 1.0高頻抖動缺少平滑化加入 --driving-smooth-observation-variance 3e-7
+最終 LivePortrait 參數組合
+--flag-use-half-precision
+--flag-pasteback
+--flag-relative-motion
+--flag-stitching
+--driving-multiplier 1.0
+--flag-eye-retargeting
+--flag-lip-retargeting
+--driving-smooth-observation-variance 3e-7
+
+第五階段：FFmpeg 後處理問題
+問題歷程
+嘗試結果zoompan 全畫面晃動背景跟著動，穿幫rotate + crop 全畫面位移鏡頭晃動感，身體反而更僵stream_loop + vf 一段式FFmpeg 4.2 encoder EOF 錯誤兩段式展開再套濾鏡還是失敗純色彩後處理穩定，不移動畫面
+結論
+全畫面位移濾鏡會讓背景漂移，身體動作應完全交給 LivePortrait stitching 負責。FFmpeg 只做色彩微調：
+python"hue=s=1.03,eq=contrast=1.02:brightness=0.01"
+
+第六階段：FFmpeg 版本衝突問題
+問題
+
+venv312 內的 FFmpeg 是 4.2.2（舊版）
+系統安裝的 FFmpeg 是 8.1（C:\ffmpeg\ffmpeg-8.1-essentials_build\bin\）
+venv 環境優先使用舊版，觸發 not open encoder before EOF
+
+解法：建立獨立 FFmpeg Server
+ffmpeg_server.py（Port 7862）
+
+系統 Python 執行，不需要任何 venv
+直接呼叫 FFmpeg 8.1
+提供三個路由：
+
+POST /process_video：驅動影片裁切
+POST /merge_audio：音訊合併
+POST /extract_frame：截取單幀
+
+
+prepare_driving_video.py 和 extract_source_frame.py 改為 HTTP 呼叫此 Server
+
+
+前端優化歷程
+問題與修正
+問題				修正
+影片用外部播放器開啟		Flask 加入明確 MIME type 路由
+影片跑版蓋住 UI			重構 .media-wrapper 容器架構
+圓形遮罩裁切影片		影片用方形容器，靜止照片才用圓形
+音訊結束影片繼續播		綁定 audioPlayer.onended 事件
+影片比音訊長			FFprobe 偵測音訊時長，FFmpeg 精確裁切

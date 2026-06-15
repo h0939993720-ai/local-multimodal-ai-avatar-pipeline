@@ -1,0 +1,70 @@
+# =========================
+# 環境變數 / 機密資訊
+# =========================
+.env
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+venv*/
+*.egg-info/
+.pytest_cache/
+
+# =========================
+# 個人化頭像 / 語音 / 影片素材
+# =========================
+static/avatar/master.jpg
+static/avatar/master_voice_5s.wav
+static/avatar/master_drive.mp4
+static/audio/*
+static/video/*
+!static/audio/.gitkeep
+!static/video/.gitkeep
+
+# =========================
+# 知識庫資料
+# =========================
+data.txt
+
+# =========================
+# 模型權重 / checkpoints
+# =========================
+checkpoints/
+models/
+*.pth
+*.pt
+*.ckpt
+*.bin
+*.safetensors
+*.onnx
+
+# =========================
+# MuseTalk / LivePortrait 暫存與輸出
+# =========================
+results/
+*.pkl
+
+# =========================
+# 第三方 clone 子專案
+# =========================
+LivePortrait/
+
+# =========================
+# IDE / 系統
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =========================
+# 日誌 / 工程手記（個人研發記錄）
+# =========================
+*.log
+工程手記*.txt

@@ -1,0 +1,23 @@
+# =========================
+# 主程式環境（venv312）
+# 涵蓋：app.py, ffmpeg_server.py, liveportrait_server.py,
+#       tts_service.py, video_service.py
+#
+# 安裝順序建議：
+#   1. 先安裝 PyTorch（依你的 GPU 選對應版本）
+#      RTX 50 系列（Blackwell）需要 nightly build，例如：
+#      pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+#      其他 GPU 請參考 https://pytorch.org/get-started/locally/
+#   2. 再安裝以下套件：
+#      pip install -r requirements_main.txt
+# =========================
+
+Flask==3.1.3
+flask-cors==6.0.2
+python-dotenv==1.2.2
+openai==2.33.0
+sentence-transformers==5.4.1
+faiss-cpu==1.13.2
+chardet==7.4.3
+numpy==1.26.4
+requests==2.33.1

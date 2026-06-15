@@ -1,0 +1,89 @@
+專案修改總結		5/27
+問題一：start_ffmpeg.bat 編碼錯誤
+症狀：'eg' 不是內部或外部命令、'Port:' 不是內部或外部命令
+原因：bat 檔儲存為 UTF-8，但 chcp 437 切換成英文編碼，中文字元被誤判為命令執行。
+修正：移除 chcp 437，echo 內容全改為英文。
+
+問題二：FFmpeg Server 用到舊版 FFmpeg
+症狀：error code: -22 (Invalid argument)、no packets
+原因：start_ffmpeg.bat 沒有明確指定 Python 路徑，執行到 venv 內的舊版 FFmpeg 4.2.2。
+修正：bat 檔改為明確呼叫 C:\Users\USER\AppData\Local\Programs\Python\Python312\python.exe。
+
+問題三：輸出尺寸高度非偶數
+症狀：height not divisible by 2 (512x309)、libx264 無法編碼
+原因：OUTPUT_H = 309 是奇數，libx264 要求寬高必須是偶數。
+修正：prepare_driving_video.py 和 extract_source_frame.py 的 OUTPUT_H 改為 308。
+
+問題四：影片結束早於音訊
+症狀：影片 13 秒結束，最後一句「的結合」沒說完
+原因：get_audio_duration 偵測時長有浮點誤差，FFmpeg -t 參數抓得比實際音訊略短。
+修正：liveportrait_server.py 和 ffmpeg_server.py 的 -t 參數改為 audio_duration + 1.0，加 1 秒緩衝。
+
+MuseTalk 安裝階段總結 	5/28
+問題一：Python 3.12 與 numpy==1.23.5 不相容
+症狀：AttributeError: module 'pkgutil' has no attribute 'ImpImporter'
+原因：numpy==1.23.5 使用了 Python 3.12 已移除的 pkgutil.ImpImporter。
+修正：改用 Python 3.10 重建 venv，並將 requirements.txt 的 numpy==1.23.5 改為 numpy==1.24.3。
+
+問題二：contourpy==1.3.3 需要 Python >=3.11
+症狀：Could not find a version that satisfies the requirement contourpy==1.3.3
+原因：contourpy==1.3.3 只支援 Python 3.11 以上。
+修正：requirements.txt 改為 contourpy==1.2.1。
+
+問題三：tensorflow 與 gradio 的 typing-extensions 衝突
+症狀：ResolutionImpossible，tensorflow 要求 typing-extensions<4.6.0，gradio 要求 >=4.0。
+原因：tensorflow 2.13 與 gradio 5.24 版本差距太大，無法共存。
+修正：從 requirements.txt 移除 tensorflow 和 tensorboard，MuseTalk 本身不需要這兩個套件。
+
+MuseTalk 整合工程手記	6/1
+問題一：numpy 與 Python 3.12 不相容
+症狀：pkgutil.ImpImporter 不存在
+修正：改用 Python 3.10 建立 venv，numpy 降為 1.24.3。
+
+問題二：contourpy / tensorflow / gradio 版本衝突
+症狀：ResolutionImpossible
+修正：contourpy 改為 1.2.1，移除 tensorflow 和 tensorboard。
+
+問題三：mmcv/mmpose 與 cu128 DLL 不相容
+症狀：DLL load failed while importing _ext
+修正：完全移除 mmpose，重寫 musetalk/utils/preprocessing.py，改用 mediapipe 的新版 Tasks API 做臉部關鍵點偵測，自動下載 face_landmarker.task 模型。
+
+問題四：face-alignment LandmarksType 改名
+症狀：AttributeError: TWO_D
+修正：改為 LandmarksType._2D。
+
+問題五：SD VAE 路徑不符
+症狀：嘗試連網下載，HFValidationError
+修正：vae_type 改為 "sd-vae-ft-mse"。
+
+問題六：torch.load 舊格式不相容
+症狀：Cannot use weights_only=True with legacy .tar format
+修正：face_parsing/__init__.py 的 torch.load 加上 weights_only=False。
+
+問題七：moviepy 2.x API 變更
+症狀：'VideoFileClip' has no attribute 'set_audio'
+修正：set_audio() 改為 with_audio()，import 改為 from moviepy import VideoFileClip, AudioFileClip。
+
+問題八：參考音訊過長導致復讀
+症狀：TTS 生成重複語句
+原因：master_voice.wav 長達 286 秒，LLM context window 被撐爆。
+修正：用 FFmpeg 裁切為 8 秒，填入逐字稿 所請人間佛教，也就是佛陀的教法。，repetition_penalty 提高到 1.8，chunk_length 降為 100。
+
+最終架構
+問題輸入
+  → app.py (8080)
+  → tts_service.py → Fish Speech (7860) → 語音
+  → video_service.py → LivePortrait (7861)
+                     → FFmpeg (7862)
+                     → MuseTalk (7863) → 嘴型同步
+  → 最終影片輸出
+
+問題一：torchcodec 依賴問題 6/8
+torchaudio.load 在新版需要 torchcodec，但沒有安裝。
+修正：改用系統 FFmpeg 8.1 做重採樣，完全繞開 torchaudio。
+問題二：subprocess 未 import
+加入重採樣邏輯時漏掉 import subprocess。
+修正：在 import 區塊補上 import subprocess。
+問題三：採樣率不符（44100Hz vs 16000Hz）
+Fish Speech 輸出 44100Hz，但 MuseTalk 的 Whisper 需要 16000Hz，導致音訊特徵提取錯誤。
+修正：在 run_lipsync 的音訊特徵提取前，用 FFmpeg 先將音訊重採樣至 16000Hz。
